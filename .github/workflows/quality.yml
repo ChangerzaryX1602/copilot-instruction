@@ -106,30 +106,49 @@ jobs:
   flutter:
     name: flutter quality
     runs-on: ubuntu-latest
-    if: hashFiles('pubspec.yaml', '*/pubspec.yaml') != ''
     defaults:
       run:
         working-directory: ${{ env.FLUTTER_DIR }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      # หมายเหตุ: hashFiles() ใช้ที่ระดับ job ไม่ได้ (workflow จะไม่เริ่มเลย)
+      # ⇒ ตรวจว่ามีโปรเจกต์ Flutter ไหมใน step แล้วค่อยเปิด step ที่เหลือ
+      - name: detect Flutter project
+        id: detect
+        run: |
+          if [ -f pubspec.yaml ]; then
+            echo "has_pubspec=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_pubspec=false" >> "$GITHUB_OUTPUT"
+            echo "ไม่พบ pubspec.yaml ใน $FLUTTER_DIR — ข้ามงาน Flutter (repo ชุดกฎนี้ไม่มีโค้ดแอป)"
+          fi
+
+      - name: setup flutter
+        if: steps.detect.outputs.has_pubspec == 'true'
+        uses: subosito/flutter-action@v2
         with:
           channel: ${{ env.FLUTTER_VERSION }}
           cache: true
 
-      - run: flutter pub get
+      - name: flutter pub get
+        if: steps.detect.outputs.has_pubspec == 'true'
+        run: flutter pub get
 
       - name: format check
+        if: steps.detect.outputs.has_pubspec == 'true'
         run: dart format --output=none --set-exit-if-changed .
 
       - name: analyze — infos ถือเป็น failure
+        if: steps.detect.outputs.has_pubspec == 'true'
         run: flutter analyze --fatal-infos
 
       - name: unit + widget tests + coverage
+        if: steps.detect.outputs.has_pubspec == 'true'
         run: flutter test --coverage
 
       - name: coverage floor 60 percent
+        if: steps.detect.outputs.has_pubspec == 'true'
         run: |
           set -euo pipefail
           if ! command -v lcov >/dev/null; then
@@ -140,6 +159,7 @@ jobs:
           awk -v p="$pct" 'BEGIN { if (p+0 < 60) { printf("::error::coverage %.1f%% ต่ำกว่า 60%%\n", p); exit 1 } printf("coverage %.1f%%\n", p) }'
 
       - name: dependency report + known-vulnerability check
+        if: steps.detect.outputs.has_pubspec == 'true'
         run: |
           set -euo pipefail
           flutter pub outdated --no-dev-dependencies || true
@@ -150,10 +170,11 @@ jobs:
           fi
 
       - name: build (จับ plugin/platform config ที่แตก)
+        if: steps.detect.outputs.has_pubspec == 'true'
         run: flutter build apk --debug
 
       - name: upload coverage artifact
-        if: always()
+        if: always() && steps.detect.outputs.has_pubspec == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: coverage
