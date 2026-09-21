@@ -115,6 +115,35 @@ flutter --version
 grep -n "Flutter \*\*" .github/copilot-instructions.md
 ```
 
+## เริ่มโปรเจกต์ใหม่ให้ตรงกับ pin ใน §1 (คำสั่งเดียวจบ)
+
+```bash
+# 1) สร้างโปรเจกต์ (แก้ org ตามบริษัท)
+flutter create --org com.example.voicenetwork --platforms android,ios app && cd app
+
+# 2) ใส่ dependency ให้ตรงกับ §1 (pub จะเลือกเวอร์ชัน compatible ล่าสุดให้)
+flutter pub add flutter_riverpod dio go_router flutter_secure_storage shared_preferences
+flutter pub add freezed_annotation json_annotation
+flutter pub add --dev build_runner freezed json_serializable mocktail
+
+# 3) เปิด codegen + l10n ใน pubspec.yaml
+#    flutter:
+#      generate: true
+#    dependencies:
+#      flutter_localizations:
+#        sdk: flutter
+#      intl: any
+
+# 4) ยืนยันว่าตรงกันจริง แล้วให้ AI อ่านของจริง
+flutter --version && flutter pub deps --style=compact
+```
+
+ถ้าเวอร์ชันที่ `pub` เลือกให้ต่างจากตัวเลขใน §1 เล็กน้อย **ไม่เป็นไร** — ตัวเลขใน §1 มีไว้บอก
+AI ว่า "ห้ามเขียน idiom ของ major อื่น" ไม่ใช่ให้ไปบังคับ lock เอง · แต่ถ้าต่าง **major** ให้แก้ §1
+ให้ตรงกับ `pubspec.yaml` ทันที ไม่งั้น AI จะเขียน API ผิดรุ่น
+
+---
+
 ## ตรวจว่า Copilot อ่านจริง (ห้ามข้าม)
 
 1. Copilot Chat → **gear / Configure Chat** → ต้องเห็นไฟล์ instruction ที่มันเจอ
