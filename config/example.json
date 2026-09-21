@@ -1,0 +1,7 @@
+{
+  "_comment": "คัดลอกเป็น config/dev.json แล้วเติมค่าจริง — ไฟล์ config/*.json ถูก gitignore ยกเว้น example.json",
+  "API_BASE_URL": "http://localhost:8080",
+  "VERBOSE_LOGS": true,
+  "ENABLE_ANALYTICS": false,
+  "FLAVOR": "dev"
+}

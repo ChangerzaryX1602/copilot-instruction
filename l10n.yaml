@@ -1,0 +1,31 @@
+# gen-l10n config — ข้อ 12 (ห้าม hardcode string)
+#
+# ติดตั้งครั้งเดียว: เพิ่มใน pubspec.yaml แล้วรัน `flutter gen-l10n` (หรือ `flutter pub get`)
+#
+# flutter:
+#   generate: true
+#
+# dependencies:
+#   flutter_localizations:
+#     sdk: flutter
+#   intl: any
+#
+# ไฟล์ที่ gen ได้จะอยู่ที่ output-dir ข้างล่างนี้ — ห้ามแก้มือ (ถูก exclude ใน analysis_options.yaml)
+#
+# วิธีใช้ในโค้ด:
+#   context.l10n.noCalls            // ไม่ใช่ 'ไม่พบรายการ'
+#   context.l10n.durationLabel(d)   // ไม่ใช่ '$d นาที' (ต่อ string เอง = แปลไม่ได้)
+#
+# ถ้าแอปมีภาษาเดียวและจะไม่เพิ่มภาษาอื่น: ใช้ const class กลาง 1 ไฟล์แทนได้
+# แต่ต้องเป็นศูนย์กลางเดียว ห้ามมี literal ใน widget อยู่ดี
+#
+# ⚠️ ตัวเลือก (keys) ของ gen-l10n เปลี่ยนตามเวอร์ชัน Flutter — หลังตั้งค่าครั้งแรก
+#    ให้รัน `flutter gen-l10n` แล้วแก้ตาม error ถ้ามันบอกว่า option ไม่รู้จัก
+
+arb-dir: lib/l10n
+template-arb-file: app_th.arb            # ภาษาต้นทาง
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+output-dir: lib/l10n/generated           # Dart 3.10+/Flutter ใหม่: gen ลง lib/ ตรง ๆ
+nullable-getter: false                   # ให้ context.l10n คืนค่า non-null
+preferred-supported-locales: [th]

@@ -1,0 +1,165 @@
+name: quality
+
+# กฎที่ CI บังคับ = กฎที่ AI ทำตามจริง · ข้อความใน .github/ เป็นแค่ "ขอ" ไฟล์นี้คือ "ตัดสิน"
+# ⚠️ ต้องไปตั้งให้ job เหล่านี้เป็น REQUIRED status checks ใน branch protection ด้วย
+#    ไม่งั้นมันคือของประดับ
+#
+# ออกแบบให้ "ข้ามงานที่ไม่มีของ" ได้: job flutter จะข้ามถ้าไม่มี pubspec.yaml
+# ⇒ ใช้ไฟล์นี้ได้ทั้งใน repo ชุดนี้เอง (มีแต่กฎ) และใน repo แอป Flutter จริง
+#
+# ถ้าแอปอยู่ใน subfolder (เช่น app/) → ตั้ง FLUTTER_DIR: app
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_DIR: .
+  FLUTTER_VERSION: stable   # แนะนำให้ pin เช่น 3.47.5 ให้ตรงกับเครื่องทีม (ดูหมายเหตุท้ายไฟล์)
+
+jobs:
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: instruction files must not contain raw key material
+        # กันเคส 'paste ตัวอย่าง PEM header/key ลงไฟล์กฎ' ที่เคยทำให้ scan ล้มทั้งรอบ
+        # หมายเหตุ: ตัว pattern ถูกต่อจาก 2 ส่วนโดยตั้งใจ เพื่อไม่ให้บรรทัดนี้ "match ตัวเอง"
+        # และไม่ให้ gitleaks มองว่าไฟล์นี้มี key อยู่
+        run: |
+          set -euo pipefail
+          pem='-----BEGIN [A-Z ]*'"PRIVATE KEY"'-----'
+          if grep -rInE -- "$pem" .github docs 2>/dev/null; then
+            echo "::error::พบ private key header ในไฟล์กฎ — ให้อธิบายเป็นคำพูด ไม่ต้อง paste ของจริง"
+            exit 1
+          fi
+          echo "clean"
+
+  kit:
+    name: instruction kit integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: every instructions file needs a valid applyTo
+        run: |
+          set -euo pipefail
+          fail=0
+          for f in .github/instructions/*.instructions.md; do
+            [ -e "$f" ] || continue
+            if ! head -5 "$f" | grep -q '^applyTo:'; then
+              echo "::error file=$f::ไม่มี applyTo ใน frontmatter — instruction file จะไม่ถูกใช้เลย (แบบเงียบ ๆ)"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: frontmatter of prompts, skills and agents parses
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob, sys
+          bad = []
+          for pattern in ('.github/prompts/*.prompt.md', '.github/skills/*/SKILL.md',
+                          '.github/agents/*.agent.md'):
+              for path in glob.glob(pattern):
+                  text = open(path, encoding='utf-8').read()
+                  if not text.startswith('---'):
+                      bad.append((path, 'no frontmatter')); continue
+                  block = text.split('---', 2)[1]
+                  if 'name:' not in block and 'description:' not in block:
+                      bad.append((path, 'frontmatter has neither name nor description'))
+          for path, why in bad:
+              print(f'::error file={path}::{why}')
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: no unfilled REPLACE markers left
+        # ข้ามใน repo ชุดนี้เอง (เป็น template ที่ต้องมี marker อยู่)
+        # ใน repo แอปจริง (มี pubspec.yaml) = บังคับว่า marker ต้องถูกเติมครบ
+        if: hashFiles('pubspec.yaml', '*/pubspec.yaml') != ''
+        run: |
+          set -euo pipefail
+          if grep -rn "REPLACE" .github/copilot-instructions.md; then
+            echo "::error::ยังมี <REPLACE: ...> ที่ต้องเติมค่าจริงจาก pubspec.yaml"
+            exit 1
+          fi
+          echo "no markers"
+
+  flutter:
+    name: flutter quality
+    runs-on: ubuntu-latest
+    if: hashFiles('pubspec.yaml', '*/pubspec.yaml') != ''
+    defaults:
+      run:
+        working-directory: ${{ env.FLUTTER_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - run: flutter pub get
+
+      - name: format check
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: analyze — infos ถือเป็น failure
+        run: flutter analyze --fatal-infos
+
+      - name: unit + widget tests + coverage
+        run: flutter test --coverage
+
+      - name: coverage floor 60 percent
+        run: |
+          set -euo pipefail
+          if ! command -v lcov >/dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq lcov
+          fi
+          lcov --summary coverage/lcov.info
+          pct=$(lcov --summary coverage/lcov.info 2>&1 | grep -oE 'lines\.*: [0-9.]+' | grep -oE '[0-9.]+')
+          awk -v p="$pct" 'BEGIN { if (p+0 < 60) { printf("::error::coverage %.1f%% ต่ำกว่า 60%%\n", p); exit 1 } printf("coverage %.1f%%\n", p) }'
+
+      - name: dependency report + known-vulnerability check
+        run: |
+          set -euo pipefail
+          flutter pub outdated --no-dev-dependencies || true
+          if dart pub audit --help >/dev/null 2>&1; then
+            dart pub audit
+          else
+            echo "dart pub audit ไม่มีในเวอร์ชันนี้ — ใช้ osv-scanner แทนได้ (optional)"
+          fi
+
+      - name: build (จับ plugin/platform config ที่แตก)
+        run: flutter build apk --debug
+
+      - name: upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: ${{ env.FLUTTER_DIR }}/coverage/lcov.info
+          if-no-files-found: ignore
+
+# หมายเหตุการ pin เวอร์ชัน: `channel: stable` = CI เปลี่ยนเองโดยไม่มีใครแก้โค้ด
+# ถ้าต้องการความแน่นอน ให้ pin เป็นเลขเวอร์ชัน (เช่น 3.47.5) แล้วอัปเดตพร้อมกันทั้งทีม
+# และต้องตั้ง job เหล่านี้เป็น REQUIRED ใน Settings → Branches → Branch protection rules

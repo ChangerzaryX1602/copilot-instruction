@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# Pre-commit gate — ชั้น 5 ของชุด copilot-instruction
+#
+# เปิดใช้ครั้งเดียวต่อ clone:
+#   git config core.hooksPath .githooks && chmod +x .githooks/pre-commit
+#
+# หลักการ: gate ที่ "หายไปเงียบ ๆ เมื่อไม่มี binary" = gate ปลอม
+#   ⇒ secret scan ใช้ gitleaks ถ้ามี ไม่งั้นถอยไปใช้ grep (ทำงานเสมอ)
+#
+# ตัวแปรปรับได้:
+#   RUN_ANALYZE=1   → รัน flutter analyze ด้วย (ช้า ใช้ตอนอยากเข้ม)
+#   SKIP_FORMAT=1   → ข้าม format check
+#
+# ข้ามชั่วคราว (มีเหตุผลจริงเท่านั้น): git commit --no-verify
+
+set -uo pipefail
+
+fail() { printf '\033[31m✖ %s\033[0m\n' "$1" >&2; }
+warn() { printf '\033[33m! %s\033[0m\n' "$1" >&2; }
+ok()   { printf '\033[32m✓ %s\033[0m\n' "$1"; }
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+
+status=0
+
+# ── 1. ไฟล์ที่ห้าม commit เด็ดขาด (rule 14) ───────────────────────────────────
+# ใช้ 3 pass แยกกันเพราะ grep -E ไม่รองรับ lookahead (และ BSD grep บน macOS ต่างจาก GNU)
+forbidden=$(printf '%s\n' "$staged" | grep -E '(^|/)(\.env(\..*)?|key\.properties)$' || true)
+forbidden="$forbidden$(printf '\n%s\n' "$staged" | grep -E '\.(pem|p12|jks|keystore)$' || true)"
+forbidden="$forbidden$(printf '\n%s\n' "$staged" | grep -E '^config/.*\.json$' | grep -v '^config/example\.json$' || true)"
+if [ -n "$(printf '%s' "$forbidden" | tr -d '[:space:]')" ]; then
+  fail "ไฟล์ต่อไปนี้ห้าม commit (rule 14 — secrets/config):"
+  printf '%s\n' "$forbidden" | sed '/^$/d' | sed 's/^/  - /' >&2
+  ok_hint="  ถ้าเป็นค่าจริง: ย้ายไป GitHub Actions secrets / --dart-define-from-file และ git rm --cached"
+  printf '%s\n' "$ok_hint" >&2
+  status=1
+fi
+
+# ── 2. Secret scan ────────────────────────────────────────────────────────────
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks protect --staged --no-banner --redact >/dev/null 2>&1; then
+    fail "gitleaks พบ secret ใน staged changes — ดูรายละเอียด: gitleaks protect --staged --verbose"
+    status=1
+  else
+    ok "secret scan (gitleaks)"
+  fi
+else
+  warn "ไม่พบ gitleaks — ใช้ grep fallback (ติดตั้ง gitleaks เพื่อความแม่นยำกว่า)"
+  patterns=(
+    '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+    'AKIA[0-9A-Z]{16}'
+    'gh[pousr]_[A-Za-z0-9]{36,}'
+    'sk_live_[0-9A-Za-z]{20,}'
+    'xox[baprs]-[0-9A-Za-z-]{10,}'
+    'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'   # JWT แบบยาว (เข้ารหัส/เซ็นแล้ว)
+  )
+  hits=""
+  for p in "${patterns[@]}"; do
+    found=$(git diff --cached -U0 | grep -nE "^\+.*$p" || true)
+    [ -n "$found" ] && hits="$hits
+$p → $found"
+  done
+  # ไฟล์ที่ไม่ควรมีค่าจริง (เพิ่มความเข้มเฉพาะไฟล์ที่มักถูก paste)
+  if [ -n "$hits" ]; then
+    fail "พบรูปแบบที่คล้าย secret ใน staged changes:"
+    printf '%s\n' "$hits" >&2
+    status=1
+  else
+    ok "secret scan (grep fallback)"
+  fi
+fi
+
+# ── 3. ไฟล์กฎต้องไม่ถูก paste key/PEM header ลงไป (บทเรียนจาก backup ที่ล้มทั้งรอบ) ──
+doc_hits=$(printf '%s\n' "$staged" | grep -E '\.(md|markdown|mdx)$' || true)
+if [ -n "$doc_hits" ]; then
+  bad=$(printf '%s\n' "$doc_hits" | while read -r f; do
+    [ -f "$f" ] && grep -InE -- '-----BEGIN [A-Z ]*PRIVATE KEY-----' "$f" | sed "s|^|$f:|"
+  done)
+  if [ -n "$bad" ]; then
+    fail "พบ PEM header ดิบในไฟล์เอกสาร/กฎ — เขียนอธิบายเป็นคำพูดแทน:"
+    printf '%s\n' "$bad" >&2
+    status=1
+  fi
+fi
+
+# ── 4. Format check (rule 15) — เร็ว จึงรันเป็นค่าเริ่มต้น ──────────────────────
+if [ "${SKIP_FORMAT:-0}" != "1" ] && command -v dart >/dev/null 2>&1; then
+  dart_files=$(printf '%s\n' "$staged" | grep -E '\.dart$' || true)
+  if [ -n "$dart_files" ]; then
+    # shellcheck disable=SC2086
+    if ! dart format --output=none --set-exit-if-changed $dart_files >/dev/null 2>&1; then
+      fail "dart format ยังไม่เรียบร้อย — รัน: dart format . แล้ว commit ใหม่"
+      status=1
+    else
+      ok "dart format"
+    fi
+  fi
+elif [ "${SKIP_FORMAT:-0}" != "1" ]; then
+  warn "ไม่พบ dart — ข้าม format check (ติดตั้ง Flutter SDK บนเครื่องนี้)"
+fi
+
+# ── 5. Analyzer (opt-in เพราะช้า) ─────────────────────────────────────────────
+if [ "${RUN_ANALYZE:-0}" = "1" ]; then
+  if command -v flutter >/dev/null 2>&1; then
+    if ! flutter analyze --fatal-infos >/dev/null 2>&1; then
+      fail "flutter analyze ไม่สะอาด — รันเองเพื่อดูรายละเอียด"
+      status=1
+    else
+      ok "flutter analyze"
+    fi
+  else
+    warn "RUN_ANALYZE=1 แต่ไม่พบ flutter — ข้าม"
+  fi
+fi
+
+if [ "$status" -ne 0 ]; then
+  printf '\n\033[31mcommit ถูกบล็อก\033[0m — แก้ตามด้านบน แล้วลองใหม่\n' >&2
+  printf 'ตั้งใจข้ามจริง ๆ (มีเหตุผล): git commit --no-verify\n' >&2
+fi
+exit "$status"

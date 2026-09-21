@@ -1,0 +1,19 @@
+# repo ของชุดกฎ — ไม่มี application code ⇒ ไม่มีอะไรต้อง ignore มาก
+# (ไฟล์ gitignore-template.txt คือของที่คัดลอกไปใช้ใน repo แอป Flutter)
+
+.DS_Store
+Thumbs.db
+*.log
+*.zip
+.idea/
+*.iml
+
+# กันคนเผลอ commit config จริงของตัวเองลง repo ชุดนี้
+config/*.json
+!config/example.json
+.env
+.env.*
+*.pem
+*.jks
+*.keystore
+key.properties

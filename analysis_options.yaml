@@ -1,0 +1,133 @@
+# Lint + analyzer config — the machine-enforced half of the 15 rules.
+#
+# ข้อ 3,4,6,7,10,15 บังคับด้วยไฟล์นี้ (ดูตารางเต็มที่ docs/rule-to-lint.md)
+# กฎที่เหลือ (1,2,5,8,9,11,12,13) บังคับด้วย lint ไม่ได้ — ต้องใช้ review + prompt
+#
+# ถ้า analyzer ฟ้อง "unknown lint rule" ให้ลบตัวนั้นออก: ตัวที่ใหม่ที่สุดอยู่ท้ายบล็อก
+# และต้องมี Dart ≥ 3.7 สำหรับบล็อก `formatter:` (ถ้าเก่ากว่า ให้ลบ formatter: ออก)
+
+include: package:flutter_lints/flutter.yaml
+# ถ้าทีมอยากได้ชุดที่เข้มกว่า: สลับบรรทัดบนเป็น
+# include: package:very_good_analysis/analysis_options.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/*.gr.dart"
+    - "lib/l10n/generated/**"
+    - "**/generated_plugin_registrant.dart"
+
+  language:
+    # ข้อ 3 — ห้าม infer เอง ห้าม downcast เงียบ ๆ ห้าม raw generic
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
+  errors:
+    # ข้อ 3 — พลาด required param / พลาด return = บั๊ก ไม่ใช่ warning
+    missing_required_param: error
+    missing_return: error
+    invalid_assignment: error
+    # ให้ CI แดงไม่ได้ถ้ายังมีของตายค้างอยู่
+    unused_import: error
+    unused_local_variable: error
+    dead_code: error
+    todo: ignore            # TODO(name): ยอมให้มี แต่ต้องมีชื่อเจ้าของ
+
+linter:
+  rules:
+    # ── ข้อ 3: null safety & error handling ────────────────────────────────
+    avoid_dynamic_calls: true
+    avoid_empty_else: true
+    avoid_returning_null_for_void: true
+    cast_nullable_to_non_nullable: true
+    discarded_futures: true
+    no_adjacent_strings_in_list: true
+    only_throw_errors: true
+    test_types_in_equals: true
+    throw_in_finally: true
+    unawaited_futures: true
+    unnecessary_statements: true
+    unrelated_type_equality_checks: true
+    use_build_context_synchronously: true
+    avoid_catches_without_on_clauses: true   # catch แบบไม่ระบุ type = กลืนทุกอย่าง
+    avoid_positional_boolean_parameters: true
+    parameter_assignments: true
+
+    # ── ข้อ 4: const & widget extraction ───────────────────────────────────
+    prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_const_declarations: true
+    prefer_const_literals_to_create_immutables: true
+    avoid_unnecessary_containers: true
+    sized_box_for_whitespace: true
+    use_colored_box: true
+    use_decorated_box: true
+
+    # ── ข้อ 6: naming conventions ──────────────────────────────────────────
+    constant_identifier_names: true
+    camel_case_types: true
+    non_constant_identifier_names: true
+    file_names: true
+    library_names: true
+    package_names: true
+    library_private_types_in_public_api: true
+    no_leading_underscores_for_local_identifiers: true
+    always_put_required_named_parameters_first: true
+    use_super_parameters: true
+
+    # ── ข้อ 7: memory / dispose ────────────────────────────────────────────
+    cancel_subscriptions: true
+    close_sinks: true
+    avoid_slow_async_io: true
+
+    # ── ข้อ 10: documentation ──────────────────────────────────────────────
+    slash_for_doc_comments: true
+    comment_references: true
+    public_member_api_docs: false   # เปิดเมื่อ lib/ กลายเป็น package ที่คนอื่นใช้
+
+    # ── ข้อ 15 + formatting ───────────────────────────────────────────────
+    require_trailing_commas: true
+    prefer_single_quotes: true
+    directives_ordering: true
+    always_use_package_imports: true
+    avoid_relative_lib_imports: true
+    prefer_expression_function_bodies: false   # อ่านง่ายกว่าเมื่อเป็นบล็อก
+    lines_longer_than_80_chars: false          # ใช้ page_width: 100 แทน
+
+    # ── hygiene เพิ่มเติม (ไม่ใช่ข้อใน 15 แต่กันงานเสีย) ────────────────────
+    avoid_print: true
+    avoid_void_async: true
+    unnecessary_lambdas: true
+    unnecessary_overrides: true
+    unnecessary_brace_in_string_interps: true
+    unnecessary_string_interpolations: true
+    unnecessary_to_list_in_spreads: true
+    prefer_final_locals: true
+    prefer_final_fields: true
+    prefer_int_literals: true
+    prefer_typing_uninitialized_variables: true
+    use_enums: true
+    use_if_null_to_convert_nulls_to_bools: true
+    use_key_in_widget_constructors: true
+    no_logic_in_create_state: true
+    avoid_web_libraries_in_flutter: true
+    avoid_type_to_string: true
+    avoid_bool_literals_in_conditional_expressions: true
+    avoid_redundant_argument_values: true
+    cascade_invocations: true
+    collection_methods_unrelated_type: true
+    depend_on_referenced_packages: true
+    sort_pub_dependencies: true
+    sort_unnamed_constructors_first: true
+    flutter_style_todos: true
+    tighten_type_of_initializing_formals: true
+    unnecessary_late: true
+    use_string_in_part_of_directives: true
+    no_default_cases: true
+    no_leading_underscores_for_library_prefixes: true
+
+formatter:
+  page_width: 100
+  trailing_commas: preserve   # ข้อ 15 — trailing comma สั่งให้ formatter แตกบรรทัดเป็นแนวตั้ง

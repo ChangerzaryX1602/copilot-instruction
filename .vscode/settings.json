@@ -1,0 +1,55 @@
+{
+  "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+  "chat.includeApplyingInstructions": true,
+  "chat.includeReferencedInstructions": true,
+  "chat.useAgentsMdFile": false,
+  "github.copilot.chat.organizationInstructions.enabled": true,
+
+  "dart.lineLength": 100,
+  "editor.rulers": [100],
+  "editor.formatOnSave": true,
+  "editor.formatOnType": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit"
+  },
+  "[dart]": {
+    "editor.defaultFormatter": "Dart-Code.dart-code",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.trimAutoWhitespace": true
+  },
+  "dart.analysisExcludedFolders": [
+    "**/*.g.dart",
+    "**/*.freezed.dart",
+    "lib/l10n/generated"
+  ],
+
+  "files.exclude": {
+    "**/.env": true,
+    "**/.env.*": true,
+    "**/*.pem": true,
+    "**/*.jks": true,
+    "**/*.keystore": true,
+    "**/key.properties": true
+  },
+  "search.exclude": {
+    "**/.env": true,
+    "**/.env.*": true,
+    "**/config/*.json": true,
+    "**/build": true,
+    "**/.dart_tool": true
+  },
+
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.eol": "\n",
+  "editor.tabSize": 2,
+  "[yaml]": {
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2
+  },
+  "[markdown]": {
+    "editor.trimAutoWhitespace": false
+  }
+}

@@ -1,0 +1,44 @@
+# ── Secrets / configuration (rule 14) ─────────────────────────────────────────
+# config จริงของแต่ละ environment ห้าม commit — commit แค่ config/example.json
+config/*.json
+!config/example.json
+.env
+.env.*
+*.pem
+*.p12
+*.jks
+*.keystore
+key.properties
+service-account*.json
+google-services.json
+GoogleService-Info.plist
+
+# ── Flutter / Dart ────────────────────────────────────────────────────────────
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+coverage/
+*.g.dart.bak
+
+# NOTE: generated code (*.g.dart, *.freezed.dart) SHOULD be committed for app repos
+#       so a fresh clone builds without running codegen. Do not gitignore them here.
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/*.log
+*.log
+.DS_Store
+Thumbs.db
+
+# ── Signing / release artifacts ───────────────────────────────────────────────
+*.jks
+*.keystore
+*.ipa
+*.apk
+*.aab
+*.symbols
