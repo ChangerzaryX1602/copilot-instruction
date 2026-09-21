@@ -30,7 +30,8 @@ lib/
 │       │   ├── repositories/     # abstract interface (สัญญาที่ data ต้องทำได้)
 │       │   └── use_cases/        # เฉพาะ logic ที่ถูกใช้ซ้ำหรือยาวจนรก view model
 │       └── presentation/
-│           ├── view_models/      # state + intent (ชื่อตาม state mgmt ที่ pin ไว้)
+│           ├── view_models/      # state + intent = Riverpod Notifier/AsyncNotifier
+│           │                     #   (ชื่อไฟล์ <x>_view_model.dart หรือ <x>_notifier.dart — เลือกแบบเดียวทั้งโปรเจกต์)
 │           ├── views/            # หน้าจอ (route target)
 │           └── widgets/          # widget เฉพาะ feature นี้
 └── l10n/                         # .arb + ไฟล์ที่ gen-l10n สร้าง (ห้ามแก้มือ)

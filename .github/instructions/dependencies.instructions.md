@@ -26,20 +26,23 @@ package).
 5. **What is the exit cost?** If it is abandoned next year, how many files import it? Keep
    third-party types out of `domain/` so it can be swapped behind an interface.
 
-### Standing allowlist (extend deliberately, not per-feature)
+### Standing allowlist — **pinned for this project** (extend deliberately, not per-feature)
 
-| Purpose | Allowed | Notes |
-|---------|---------|-------|
-| State management | **one** of riverpod / bloc / provider | pinned in `copilot-instructions.md`; never two |
-| HTTP | `dio` **or** `http` | one only; wrapped in `core/network/` so `domain/` never sees it |
-| Model codegen | `freezed` + `json_serializable` (+ `build_runner`) | dev-only codegen; generated files are never edited |
-| Secure storage | `flutter_secure_storage` | tokens/keys only — never `SharedPreferences` |
-| Simple storage | `shared_preferences` / `hive` / `sqflite` | non-secret, non-critical data |
-| Routing | `go_router` / `auto_route` | one only |
-| Equality/immutability helpers | `equatable` (if not using freezed) | |
-| Tests | `mocktail` (or `mockito`), `flutter_test`, `integration_test`, `golden_toolkit` | dev deps |
-| Lints | `flutter_lints` / `very_good_analysis` | dev dep |
-| Localisation | `flutter_localizations` + `intl` | required for `gen-l10n`; Flutter-team maintained |
+เวอร์ชันล่าสุดบน pub.dev ณ 18 ก.ย. 2026 — ใช้ caret range (`^x.y.z`) และอย่าแก้ major เอง
+ถ้าจะเปลี่ยนตัวใดตัวหนึ่ง ให้เปลี่ยนที่ `copilot-instructions.md` §1 ด้วย ไม่ใช่แก้ที่ pubspec อย่างเดียว
+
+| Purpose | Pinned | Notes |
+|---------|--------|-------|
+| State management | **flutter_riverpod `^3.4.3`** | `Notifier`/`AsyncNotifier` + sealed state · **ตัวเดียวทั้งโปรเจกต์** ห้ามผสม provider/bloc/GetX |
+| HTTP | **dio `^5.11.1`** | อยู่ใน `core/network/` เท่านั้น ⇒ `domain/` ไม่เคยเห็น dio |
+| Model codegen | **freezed `^4.0.2`** + **json_serializable `^6.14.1`** + **build_runner `^2.16.1`** (dev) | generated files ห้ามแก้มือ · ⚠️ freezed 4 ต่างจาก freezed 2 — ห้ามเดา syntax จากความจำ |
+| Secure storage | **flutter_secure_storage `^11.2.0`** | tokens/keys เท่านั้น — ห้าม `SharedPreferences` |
+| Simple storage | **shared_preferences `^2.5.5`** | ข้อมูลไม่ลับ ไม่วิกฤต |
+| Routing | **go_router `^18.0.1`** | typed routes + deep links |
+| Localisation | `flutter_localizations` (SDK) + **intl `^0.20.3`** | ต้องมีคู่กับ `gen-l10n` — ทีม Flutter ดูแลเอง |
+| Tests | **flutter_test** (SDK) + **mocktail `^1.0.5`** | dev dep · golden ใช้ `matchesGoldenFile` ของ SDK |
+| Lints | **flutter_lints `^6.0.0`** | dev dep · ทางเลือกเข้มกว่า: very_good_analysis (ต้องตกลงทั้งทีม) |
+| ทางเลือกที่ *ไม่* เลือก | `provider`, `flutter_bloc`, `http`, `equatable`, `hive`, `sqflite`, `auto_route`, `very_good_analysis` | ใช้ได้ แต่ต้องเปลี่ยนที่ constitution ให้ตรงกันทั้งโปรเจกต์ก่อน ไม่ใช่ทยอยเพิ่ม |
 
 Anything outside this table: propose it, with the five answers above, and wait for approval.
 Never add a package while implementing a feature "just to make it work".

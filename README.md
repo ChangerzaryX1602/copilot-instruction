@@ -74,6 +74,28 @@
 
 ---
 
+## ค่าที่ตั้งไว้ให้แล้วใน `copilot-instructions.md` §1
+
+เติมให้เรียบร้อยแล้วด้วย stable ล่าสุด ณ 18 ก.ย. 2026 (ตรวจจาก `releases_linux.json` ทางการ +
+`pub.dev/api`) — **4 บรรทัดนี้คือ "การตัดสินใจของทีม" ไม่ใช่ความจริงสากล** ถ้าโปรเจกต์มีอยู่แล้ว
+ให้แก้ 4 บรรทัดนี้ให้ตรงกับของจริง:
+
+| หัวข้อ | ค่าที่ตั้งให้ | เปลี่ยนได้เป็น |
+|--------|---------------|----------------|
+| Flutter / Dart | 3.47.5 / 3.13.4 | version ที่เครื่องทีมใช้ (`flutter --version`) |
+| State management | flutter_riverpod `^3.4.3` | provider / bloc — **ตัวเดียวทั้งโปรเจกต์** |
+| Model codegen | freezed `^4.0.2` + json_serializable `^6.14.1` + build_runner `^2.16.1` | built_value / เขียน model มือ |
+| Routing | go_router `^18.0.1` | auto_route / Navigator 2.0 |
+| HTTP | dio `^5.11.1` | `http` |
+| Storage | flutter_secure_storage `^11.2.0` + shared_preferences `^2.5.5` | hive / sqflite |
+| Lints / Tests | flutter_lints `^6.0.0` · flutter_test + mocktail `^1.0.5` | very_good_analysis |
+| Minimum OS | Android 8.0 (API 26) · iOS 14.0 | ตามที่ธุรกิจต้องการ |
+
+ทำไมต้อง pin: training data ของ AI เก่ากว่า release ⇒ ถ้าไม่บอกเวอร์ชัน มันจะเขียน idiom ของ
+major เก่า (เช่น syntax freezed 2 ที่ไม่คอมไพล์บน freezed 4) — บรรทัดพวกนี้คือ lever แรงสุดในไฟล์
+
+---
+
 ## ติดตั้ง (บนเครื่องที่ใช้ทำงาน)
 
 ```bash
@@ -88,9 +110,9 @@ cp    /path/to/copilot-instruction/l10n.yaml              ./        # ถ้า�
 git config core.hooksPath .githooks
 chmod +x .githooks/pre-commit
 
-# 3) เติมค่าที่ต้องรู้เอง (มี marker <REPLACE: ...> กำกับ)
-grep -rn "REPLACE" .github/copilot-instructions.md
-#   เปิด pubspec.yaml / package.json / go.mod ของจริง แล้วเติม version ให้ตรง
+# 3) เช็คว่า pin ใน §1 ตรงกับเครื่องจริง (ค่า default เติมไว้แล้ว ไม่มี marker ค้าง)
+flutter --version
+grep -n "Flutter \*\*" .github/copilot-instructions.md
 ```
 
 ## ตรวจว่า Copilot อ่านจริง (ห้ามข้าม)
